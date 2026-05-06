@@ -133,12 +133,37 @@ const genCode = () =>
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]
   ).join("");
 
+// Verkleint en comprimeert de afbeelding voor opslag en AI-analyse
 const toBase64 = file =>
   new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = e => res(e.target.result.split(",")[1]);
-    r.onerror = () => rej(new Error("Leesfout"));
-    r.readAsDataURL(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      // Max 800px breed of hoog, behoud verhoudingen
+      const MAX = 800;
+      let { width, height } = img;
+      if (width > height && width > MAX) {
+        height = Math.round((height * MAX) / width);
+        width = MAX;
+      } else if (height > width && height > MAX) {
+        width = Math.round((width * MAX) / height);
+        height = MAX;
+      } else if (width > MAX) {
+        height = Math.round((height * MAX) / width);
+        width = MAX;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      // Kwaliteit 0.75 geeft goede balans tussen kwaliteit en bestandsgrootte
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+      res(dataUrl.split(",")[1]);
+    };
+    img.onerror = () => rej(new Error("Afbeelding laden mislukt"));
+    img.src = url;
   });
 
 async function generateQuiz(b64) {

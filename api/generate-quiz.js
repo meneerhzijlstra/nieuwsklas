@@ -4,7 +4,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // CORS headers zodat de browser de aanroep mag doen
+  // OPTIONS preflight afhandelen
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    return res.status(200).end();
+  }
+
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -23,52 +30,58 @@ Geef ALLEEN dit JSON (geen markdown, geen uitleg):
 
 Regels: "correct" = 0-gebaseerde index, varieer het juiste antwoord, test begrip, schrijf Nederlands.`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const apiKey = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-opus-4-5",
-        max_tokens: 1000,
-        messages: [
+        contents: [
           {
-            role: "user",
-            content: [
+            parts: [
               {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
+                inline_data: {
+                  mime_type: "image/jpeg",
                   data: imageBase64,
                 },
               },
               {
-                type: "text",
                 text: prompt,
               },
             ],
           },
         ],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1000,
+        },
       }),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Anthropic fout:", data);
+      console.error("Gemini fout:", JSON.stringify(data));
       return res.status(500).json({ error: "AI aanroep mislukt", details: data });
     }
 
-    const text = data.content?.map((b) => b.text || "").join("") || "";
+    // Tekst uit Gemini response halen
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    if (!text) {
+      console.error("Geen tekst in Gemini response:", JSON.stringify(data));
+      return res.status(500).json({ error: "Geen antwoord van AI ontvangen" });
+    }
+
     const clean = text.replace(/```json|```/g, "").trim();
     const quiz = JSON.parse(clean);
 
     return res.status(200).json({ quiz });
   } catch (err) {
-    console.error("Server fout:", err);
+    console.error("Server fout:", err.message);
     return res.status(500).json({ error: err.message });
   }
 }

@@ -142,31 +142,14 @@ const toBase64 = file =>
   });
 
 async function generateQuiz(b64) {
-  const prompt = `Analyseer dit nieuwsartikel screenshot en maak 4 meerkeuzevragen voor middelbare scholieren.
-
-Geef ALLEEN dit JSON (geen markdown, geen uitleg):
-{"title":"Korte titel (max 8 woorden)","summary":"Één zin samenvatting","questions":[{"question":"Vraag?","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0}]}
-
-Regels: "correct" = 0-gebaseerde index, varieer het juiste antwoord, test begrip, schrijf Nederlands.`;
-
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+  const resp = await fetch("/api/generate-quiz", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
-          { type: "text", text: prompt },
-        ],
-      }],
-    }),
+    body: JSON.stringify({ imageBase64: b64 }),
   });
   const data = await resp.json();
-  const text = data.content?.map(b => b.text || "").join("") || "";
-  return JSON.parse(text.replace(/```json|```/g, "").trim());
+  if (!resp.ok) throw new Error(data.error || "Quiz genereren mislukt");
+  return data.quiz;
 }
 
 // ─── Design tokens ────────────────────────────────────────────────────────────

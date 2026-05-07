@@ -506,14 +506,23 @@ function TeacherAuthGate({ onBack }) {
 
 // ─── TEACHER VIEW ─────────────────────────────────────────────────────────────
 function TeacherView({ teacher, onLogout }) {
-  const [rooms,       setRooms]      = useState([]);
-  const [selected,    setSelected]   = useState(null);
-  const [subs,        setSubs]       = useState([]);
-  const [newName,     setNewName]    = useState("");
-  const [creating,    setCreating]   = useState(false);
-  const [loading,     setLoading]    = useState(true);
-  const [loadingSubs, setLoadingSubs]= useState(false);
-  const [roomError,   setRoomError]  = useState("");
+  const [rooms,          setRooms]         = useState([]);
+  const [selected,       setSelected]      = useState(null);
+  const [subs,           setSubs]          = useState([]);
+  const [newName,        setNewName]       = useState("");
+  const [creating,       setCreating]      = useState(false);
+  const [loading,        setLoading]       = useState(true);
+  const [loadingSubs,    setLoadingSubs]   = useState(false);
+  const [roomError,      setRoomError]     = useState("");
+  const [showStudentList,setShowStudentList] = useState(false);
+
+  // Sluit de leerlingenlijst als je erbuiten klikt
+  useEffect(() => {
+    if (!showStudentList) return;
+    const handler = () => setShowStudentList(false);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [showStudentList]);
 
   const loadRooms = async () => {
     const data = await DB.getRoomsByTeacher(teacher.id);
@@ -678,7 +687,81 @@ function TeacherView({ teacher, onLogout }) {
                   fontFamily: "monospace", fontWeight: 800, fontSize: 20, letterSpacing: 5,
                   color: C.blue, background: C.blueLight, padding: "4px 14px", borderRadius: 8,
                 }}>{selected.code}</span>
-                <Tag color="blue">{subs.length} inlevering{subs.length !== 1 ? "en" : ""}</Tag>
+
+                {/* Klikbare inlevering-teller met uitklaplijst */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); setShowStudentList(o => !o); }}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      background: C.blueLight, color: C.blue,
+                      border: `1.5px solid ${showStudentList ? C.blue : "transparent"}`,
+                      borderRadius: 99, padding: "4px 12px",
+                      fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      transition: "border-color 0.15s",
+                    }}
+                  >
+                    {subs.length} inlevering{subs.length !== 1 ? "en" : ""}
+                    <span style={{ fontSize: 10 }}>{showStudentList ? "▲" : "▼"}</span>
+                  </button>
+
+                  {/* Uitklaplijst leerlingen */}
+                  {showStudentList && subs.length > 0 && (
+                    <div onClick={e => e.stopPropagation()} style={{
+                      position: "absolute", top: "calc(100% + 8px)", left: 0,
+                      background: C.surface, border: `1.5px solid ${C.border}`,
+                      borderRadius: 12, boxShadow: "0 4px 20px rgba(15,21,35,0.12)",
+                      zIndex: 100, minWidth: 240, maxHeight: 320, overflowY: "auto",
+                    }}>
+                      <div style={{
+                        padding: "10px 14px", borderBottom: `1px solid ${C.border}`,
+                        fontSize: 11, fontWeight: 700, color: C.sub,
+                        textTransform: "uppercase", letterSpacing: 0.8,
+                      }}>
+                        Ingeleverd door
+                      </div>
+                      {[...subs]
+                        .sort((a, b) => {
+                          // Sorteer op achternaam (laatste woord van de naam)
+                          const achternaamA = a.student_name.trim().split(" ").pop().toLowerCase();
+                          const achternaamB = b.student_name.trim().split(" ").pop().toLowerCase();
+                          return achternaamA.localeCompare(achternaamB, "nl");
+                        })
+                        .map((s, i) => {
+                          const delen = s.student_name.trim().split(" ");
+                          const achternaam = delen.pop();
+                          const voornaam = delen.join(" ");
+                          return (
+                            <div key={s.id} style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              padding: "10px 14px",
+                              borderBottom: i < subs.length - 1 ? `1px solid ${C.border}` : "none",
+                              background: i % 2 === 0 ? C.surface : C.surfaceAlt,
+                            }}>
+                              <div style={{
+                                width: 30, height: 30, borderRadius: 99, flexShrink: 0,
+                                background: C.blueLight, color: C.blue,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: 12, fontWeight: 700,
+                              }}>
+                                {achternaam[0]?.toUpperCase()}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                                  {achternaam}{voornaam ? `, ${voornaam}` : ""}
+                                </div>
+                                <div style={{ fontSize: 11, color: C.sub, marginTop: 1 }}>
+                                  {new Date(s.submitted_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
+                                  {" om "}
+                                  {new Date(s.submitted_at).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

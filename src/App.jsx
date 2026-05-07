@@ -296,7 +296,7 @@ const Spinner = ({ label }) => (
     }} />
     <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>{label}</div>
-    <div style={{ fontSize: 13, color: C.sub, marginTop: 4 }}>Even geduld…</div>
+    <div style={{ fontSize: 13, color: C.sub, marginTop: 4 }}>Dit kan even duren…</div>
   </div>
 );
 
@@ -734,12 +734,12 @@ function StudentView() {
     if (!name.trim())  return setError("Vul je naam in.");
     if (!file)         return setError("Kies een screenshot van een nieuwsbericht.");
 
-    setStep("processing"); setStatus("Screenshot verwerken…");
+    setStep("processing"); setStatus("Afbeelding uploaden…");
     try {
       const b64 = await toBase64(file);
-      setStatus("Artikel analyseren met AI…");
+      setStatus("Afbeelding verwerken…");
       const quiz = await generateQuiz(b64);
-      setStatus("Opslaan in database…");
+      setStatus("Inlevering opslaan…");
       await DB.addSubmission(uc, name.trim(), b64, quiz);
       setStep("done");
     } catch (e) {

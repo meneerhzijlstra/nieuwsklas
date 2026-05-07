@@ -859,7 +859,6 @@ function Logo({ right }) {
           fontSize: 15, boxShadow: "0 2px 6px rgba(59,111,240,0.3)",
         }}>📰</div>
         <span style={{ fontWeight: 700, fontSize: 17, color: C.text, letterSpacing: -0.3 }}>NieuwsKlas</span>
-        <span style={{ fontSize: 11, color: C.sub, background: C.bg, padding: "2px 8px", borderRadius: 99, border: `1px solid ${C.border}` }}>AI Quiz</span>
       </div>
       {right}
     </header>

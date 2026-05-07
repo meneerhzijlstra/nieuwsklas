@@ -308,11 +308,121 @@ const ErrorBox = ({ msg }) => msg ? (
   }}>{msg}</div>
 ) : null;
 
+// ─── Article Modal ────────────────────────────────────────────────────────────
+function ArticleModal({ sub, onClose }) {
+  // Sluit op Escape
+  useEffect(() => {
+    const handler = e => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(15,21,35,0.6)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20, backdropFilter: "blur(3px)",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: C.surface, borderRadius: 16,
+          boxShadow: "0 20px 60px rgba(15,21,35,0.25)",
+          width: "100%", maxWidth: 780,
+          maxHeight: "90vh", display: "flex", flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {/* Modal header */}
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "16px 20px", borderBottom: `1px solid ${C.border}`, flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: C.text }}>{sub.quiz.title}</div>
+            <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>
+              Ingeleverd door <strong style={{ color: C.text }}>{sub.student_name}</strong>
+              {" · "}
+              {new Date(sub.submitted_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}
+              {" om "}
+              {new Date(sub.submitted_at).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: C.surfaceAlt, border: `1px solid ${C.border}`,
+            borderRadius: 8, width: 32, height: 32, fontSize: 16,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            color: C.sub, flexShrink: 0, marginLeft: 16,
+          }}>✕</button>
+        </div>
+
+        {/* Scrollable content */}
+        <div style={{ overflowY: "auto", padding: "20px" }}>
+          {/* Full article image */}
+          <div style={{
+            background: C.bg, borderRadius: 10, overflow: "hidden",
+            border: `1px solid ${C.border}`, marginBottom: 20,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <img
+              src={`data:image/jpeg;base64,${sub.image_base64}`}
+              alt="Nieuwsartikel"
+              style={{ width: "100%", display: "block", objectFit: "contain", maxHeight: "60vh" }}
+            />
+          </div>
+
+          {/* Summary */}
+          <div style={{
+            background: C.blueLight, borderRadius: 10, padding: "12px 16px",
+            fontSize: 13, color: C.blue, fontStyle: "italic", lineHeight: 1.6,
+            marginBottom: 20, border: `1px solid ${C.blueMid || C.border}`,
+          }}>
+            📝 {sub.quiz.summary}
+          </div>
+
+          {/* Questions overview */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 12 }}>
+            Gegenereerde vragen
+          </div>
+          {sub.quiz.questions.map((q, qi) => (
+            <div key={qi} style={{
+              background: C.surfaceAlt, borderRadius: 10, padding: "12px 14px",
+              marginBottom: 10, border: `1px solid ${C.border}`,
+            }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: C.text, marginBottom: 8 }}>
+                {qi + 1}. {q.question}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {q.options.map((opt, oi) => (
+                  <div key={oi} style={{
+                    fontSize: 12, padding: "5px 10px", borderRadius: 6,
+                    background: oi === q.correct ? C.greenLight : "transparent",
+                    color: oi === q.correct ? C.green : C.sub,
+                    fontWeight: oi === q.correct ? 600 : 400,
+                    border: `1px solid ${oi === q.correct ? C.green : "transparent"}`,
+                  }}>
+                    {opt} {oi === q.correct ? "✓" : ""}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── QuizCard ─────────────────────────────────────────────────────────────────
 function QuizCard({ sub }) {
-  const [open, setOpen] = useState(false);
-  const [ans,  setAns]  = useState({});
-  const [done, setDone] = useState(false);
+  const [open,      setOpen]      = useState(false);
+  const [ans,       setAns]       = useState({});
+  const [done,      setDone]      = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   // Veiligheidscheck — als quiz data ontbreekt laat een foutkaart zien
   const quiz = sub.quiz && typeof sub.quiz === "object" ? sub.quiz : null;
@@ -330,7 +440,9 @@ function QuizCard({ sub }) {
   const score = done ? quiz.questions.filter((q, i) => ans[i] === q.correct).length : null;
 
   return (
-    <Card style={{ marginBottom: 10, overflow: "hidden" }}>
+    <>
+      {showModal && <ArticleModal sub={{ ...sub, quiz }} onClose={() => setShowModal(false)} />}
+      <Card style={{ marginBottom: 10, overflow: "hidden" }}>
       <div onClick={() => setOpen(o => !o)} style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
         padding: "14px 18px", cursor: "pointer",
@@ -361,11 +473,42 @@ function QuizCard({ sub }) {
           <p style={{ margin: "0 0 14px", fontSize: 13, color: C.sub, fontStyle: "italic", lineHeight: 1.6 }}>
             {quiz.summary}
           </p>
-          <img
-            src={`data:image/jpeg;base64,${sub.image_base64}`}
-            alt="Screenshot"
-            style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10, border: `1px solid ${C.border}`, marginBottom: 20 }}
-          />
+
+          {/* Klikbaar artikel-preview */}
+          <div
+            onClick={() => setShowModal(true)}
+            title="Klik om het artikel volledig te bekijken"
+            style={{ position: "relative", cursor: "pointer", marginBottom: 20, borderRadius: 10, overflow: "hidden" }}
+          >
+            <img
+              src={`data:image/jpeg;base64,${sub.image_base64}`}
+              alt="Screenshot"
+              style={{ width: "100%", maxHeight: 180, objectFit: "cover", display: "block", border: `1px solid ${C.border}` }}
+            />
+            {/* Hover overlay */}
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "rgba(59,111,240,0.0)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = "rgba(59,111,240,0.35)";
+              e.currentTarget.querySelector("span").style.opacity = "1";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "rgba(59,111,240,0)";
+              e.currentTarget.querySelector("span").style.opacity = "0";
+            }}>
+              <span style={{
+                opacity: 0, transition: "opacity 0.2s",
+                background: C.white, color: C.blue,
+                borderRadius: 99, padding: "6px 16px",
+                fontSize: 12, fontWeight: 700,
+                boxShadow: "0 2px 8px rgba(15,21,35,0.15)",
+              }}>🔍 Artikel openen</span>
+            </div>
+          </div>
 
           {quiz.questions.map((q, qi) => (
             <div key={qi} style={{ marginBottom: 18 }}>
@@ -409,6 +552,7 @@ function QuizCard({ sub }) {
         </div>
       )}
     </Card>
+    </>
   );
 }
 

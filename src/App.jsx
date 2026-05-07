@@ -74,7 +74,16 @@ const DB = {
       `${SUPABASE_URL}/rest/v1/submissions?room_code=eq.${roomCode}&order=submitted_at.desc`,
       { headers }
     );
-    return res.json();
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(sub => {
+      let quiz = sub.quiz;
+      // Quiz kan een string, object of al geparsed zijn
+      if (typeof quiz === "string") {
+        try { quiz = JSON.parse(quiz); } catch { quiz = null; }
+      }
+      return { ...sub, quiz };
+    });
   },
 
   async addSubmission(roomCode, studentName, imageBase64, quiz) {
@@ -85,7 +94,8 @@ const DB = {
         room_code: roomCode,
         student_name: studentName,
         image_base64: imageBase64,
-        quiz,
+        // Sla quiz op als JSON string zodat het altijd correct wordt opgeslagen
+        quiz: typeof quiz === "string" ? quiz : JSON.stringify(quiz),
       }),
     });
     const data = await res.json();
@@ -303,8 +313,21 @@ function QuizCard({ sub }) {
   const [open, setOpen] = useState(false);
   const [ans,  setAns]  = useState({});
   const [done, setDone] = useState(false);
-  const allAnswered = sub.quiz.questions.every((_, i) => ans[i] !== undefined);
-  const score = done ? sub.quiz.questions.filter((q, i) => ans[i] === q.correct).length : null;
+
+  // Veiligheidscheck — als quiz data ontbreekt laat een foutkaart zien
+  const quiz = sub.quiz && typeof sub.quiz === "object" ? sub.quiz : null;
+  if (!quiz || !Array.isArray(quiz.questions)) {
+    return (
+      <Card style={{ marginBottom: 10, padding: "14px 18px" }}>
+        <div style={{ fontSize: 13, color: C.sub }}>
+          ⚠️ <strong>{sub.student_name}</strong> — quiz data kon niet worden geladen.
+        </div>
+      </Card>
+    );
+  }
+
+  const allAnswered = quiz.questions.every((_, i) => ans[i] !== undefined);
+  const score = done ? quiz.questions.filter((q, i) => ans[i] === q.correct).length : null;
 
   return (
     <Card style={{ marginBottom: 10, overflow: "hidden" }}>
@@ -317,7 +340,7 @@ function QuizCard({ sub }) {
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 14, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {sub.quiz.title}
+            {quiz.title}
           </div>
           <div style={{ fontSize: 12, color: C.sub, marginTop: 3 }}>
             <span style={{ fontWeight: 600, color: C.text }}>{sub.student_name}</span>
@@ -336,7 +359,7 @@ function QuizCard({ sub }) {
       {open && (
         <div style={{ padding: "18px 20px" }}>
           <p style={{ margin: "0 0 14px", fontSize: 13, color: C.sub, fontStyle: "italic", lineHeight: 1.6 }}>
-            {sub.quiz.summary}
+            {quiz.summary}
           </p>
           <img
             src={`data:image/jpeg;base64,${sub.image_base64}`}
@@ -344,7 +367,7 @@ function QuizCard({ sub }) {
             style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10, border: `1px solid ${C.border}`, marginBottom: 20 }}
           />
 
-          {sub.quiz.questions.map((q, qi) => (
+          {quiz.questions.map((q, qi) => (
             <div key={qi} style={{ marginBottom: 18 }}>
               <div style={{ fontWeight: 600, fontSize: 14, color: C.text, marginBottom: 8, lineHeight: 1.4 }}>
                 {qi + 1}. {q.question}

@@ -696,6 +696,41 @@ function TeacherView({ teacher, onLogout }) {
     return () => document.removeEventListener("click", handler);
   }, [showStudentList]);
 
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadAllScreenshots = async () => {
+    if (subs.length === 0) return;
+    setDownloading(true);
+
+    try {
+      const JSZip = require("jszip");
+      const zip = new JSZip();
+      const folder = zip.folder(selected.name);
+
+      subs.forEach((sub, i) => {
+        if (!sub.image_base64) return;
+        const naamDelen = sub.student_name.trim().split(" ");
+        const achternaam = naamDelen.pop();
+        const voornaam = naamDelen.join("_") || "onbekend";
+        const bestandsnaam = `${achternaam}_${voornaam}_${i + 1}.jpg`;
+        folder.file(bestandsnaam, sub.image_base64, { base64: true });
+      });
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${selected.name}_screenshots.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download mislukt:", err);
+      alert("Download mislukt. Probeer opnieuw.");
+    }
+
+    setDownloading(false);
+  };
+
   const loadRooms = async () => {
     const data = await DB.getRoomsByTeacher(teacher.id);
     setRooms(Array.isArray(data) ? data : []);
@@ -852,7 +887,26 @@ function TeacherView({ teacher, onLogout }) {
         ) : (
           <>
             <div style={{ marginBottom: 24 }}>
-              <h2 style={{ margin: "0 0 8px", fontSize: 24, fontWeight: 700, color: C.text }}>{selected.name}</h2>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                <h2 style={{ margin: "0 0 8px", fontSize: 24, fontWeight: 700, color: C.text }}>{selected.name}</h2>
+                {subs.length > 0 && (
+                  <button
+                    onClick={downloadAllScreenshots}
+                    disabled={downloading}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 8,
+                      background: downloading ? C.border : C.surface,
+                      color: downloading ? C.sub : C.blue,
+                      border: `1.5px solid ${downloading ? C.border : C.blue}`,
+                      borderRadius: 10, padding: "8px 16px",
+                      fontSize: 13, fontWeight: 600, cursor: downloading ? "not-allowed" : "pointer",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {downloading ? "⏳ Downloaden…" : "⬇️ Download alle screenshots"}
+                  </button>
+                )}
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 13, color: C.sub }}>Code voor leerlingen:</span>
                 <span style={{

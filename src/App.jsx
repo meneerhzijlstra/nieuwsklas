@@ -102,38 +102,17 @@ const DB = {
     });
   },
 
-  async uploadImage(base64, fileName) {
-    // Zet base64 om naar binary
-    const byteChars = atob(base64);
-    const byteArr = new Uint8Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-    const blob = new Blob([byteArr], { type: "image/jpeg" });
-
-    const res = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/artikelen/${fileName}`,
-      {
-        method: "POST",
-        headers: {
-          "apikey": SUPABASE_KEY,
-          "Authorization": `Bearer ${SUPABASE_KEY}`,
-          "Content-Type": "image/jpeg",
-          "Cache-Control": "3600",
-        },
-        body: blob,
-      }
-    );
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || "Upload mislukt");
-    }
-    // Geef de publieke URL terug
-    return `${SUPABASE_URL}/storage/v1/object/public/artikelen/${fileName}`;
-  },
-
   async addSubmission(roomCode, studentName, imageBase64, quiz) {
-    // Upload afbeelding naar Storage
-    const fileName = `${roomCode}/${Date.now()}_${studentName.replace(/\s+/g, "_")}.jpg`;
-    const imageUrl = await DB.uploadImage(imageBase64, fileName);
+    // Upload afbeelding naar Cloudinary via serverless functie
+    const fileName = `${roomCode}_${Date.now()}_${studentName.replace(/\s+/g, "_")}`;
+    const uploadRes = await fetch("/api/upload-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageBase64, fileName }),
+    });
+    const uploadData = await uploadRes.json();
+    if (!uploadRes.ok) throw new Error(uploadData.error || "Upload mislukt");
+    const imageUrl = uploadData.url;
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/submissions`, {
       method: "POST",
@@ -1693,45 +1672,62 @@ function TeacherView({ teacher, onLogout }) {
                           onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.sub; }}
                         >⬇️</button>
                       </div>
-                      {[...subs]
-                        .sort((a, b) => {
-                          // Sorteer op achternaam (laatste woord van de naam)
-                          const achternaamA = a.student_name.trim().split(" ").pop().toLowerCase();
-                          const achternaamB = b.student_name.trim().split(" ").pop().toLowerCase();
-                          return achternaamA.localeCompare(achternaamB, "nl");
-                        })
-                        .map((s, i) => {
-                          const delen = s.student_name.trim().split(" ");
-                          const achternaam = delen.pop();
-                          const voornaam = delen.join(" ");
-                          return (
-                            <div key={s.id} style={{
-                              display: "flex", alignItems: "center", gap: 10,
-                              padding: "10px 14px",
-                              borderBottom: i < subs.length - 1 ? `1px solid ${C.border}` : "none",
-                              background: i % 2 === 0 ? C.surface : C.surfaceAlt,
-                            }}>
-                              <div style={{
-                                width: 30, height: 30, borderRadius: 99, flexShrink: 0,
-                                background: C.blueLight, color: C.blue,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: 12, fontWeight: 700,
+                      {(() => {
+                        // Groepeer inleveringen per leerling
+                        const gegroepeerd = {};
+                        subs.forEach(s => {
+                          const key = s.student_name.trim().toLowerCase();
+                          if (!gegroepeerd[key]) gegroepeerd[key] = { student_name: s.student_name, tijden: [] };
+                          gegroepeerd[key].tijden.push(s.submitted_at);
+                        });
+
+                        // Sorteer op achternaam
+                        return Object.values(gegroepeerd)
+                          .sort((a, b) => {
+                            const achternaamA = a.student_name.trim().split(" ").pop().toLowerCase();
+                            const achternaamB = b.student_name.trim().split(" ").pop().toLowerCase();
+                            return achternaamA.localeCompare(achternaamB, "nl");
+                          })
+                          .map((leerling, i, arr) => {
+                            const delen = leerling.student_name.trim().split(" ");
+                            const achternaam = delen.pop();
+                            const voornaam = delen.join(" ");
+                            return (
+                              <div key={leerling.student_name} style={{
+                                display: "flex", alignItems: "flex-start", gap: 10,
+                                padding: "10px 14px",
+                                borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
+                                background: i % 2 === 0 ? C.surface : C.surfaceAlt,
                               }}>
-                                {achternaam[0]?.toUpperCase()}
-                              </div>
-                              <div>
-                                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
-                                  {achternaam}{voornaam ? `, ${voornaam}` : ""}
+                                <div style={{
+                                  width: 30, height: 30, borderRadius: 99, flexShrink: 0,
+                                  background: C.blueLight, color: C.blue,
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  fontSize: 12, fontWeight: 700, marginTop: 1,
+                                }}>
+                                  {achternaam[0]?.toUpperCase()}
                                 </div>
-                                <div style={{ fontSize: 11, color: C.sub, marginTop: 1 }}>
-                                  {new Date(s.submitted_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
-                                  {" om "}
-                                  {new Date(s.submitted_at).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                                    {achternaam}{voornaam ? `, ${voornaam}` : ""}
+                                    {leerling.tijden.length > 1 && (
+                                      <span style={{ marginLeft: 6, fontSize: 10, background: C.blueLight, color: C.blue, borderRadius: 99, padding: "1px 6px", fontWeight: 600 }}>
+                                        {leerling.tijden.length}x
+                                      </span>
+                                    )}
+                                  </div>
+                                  {leerling.tijden.sort().map((t, ti) => (
+                                    <div key={ti} style={{ fontSize: 11, color: C.sub, marginTop: 1 }}>
+                                      {new Date(t).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
+                                      {" om "}
+                                      {new Date(t).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          });
+                      })()}
                     </div>
                   )}
                 </div>

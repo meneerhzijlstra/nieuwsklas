@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
-SUPABASE_URL = "https://yxhqlnokkqhuqhvttgxw.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aHFsbm9ra3FodXFodnR0Z3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMjE0MTQsImV4cCI6MjA5MzU5NzQxNH0.i68qMyKyBEtVW8dGvacLuLLebWx8J_42SU5Wc2FgTR0"
+const SUPABASE_URL = "https://yxhqlnokkqhuqhvttgxw.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aHFsbm9ra3FodXFodnR0Z3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMjE0MTQsImV4cCI6MjA5MzU5NzQxNH0.i68qMyKyBEtVW8dGvacLuLLebWx8J_42SU5Wc2FgTR0";
 
 const headers = {
   "Content-Type": "application/json",

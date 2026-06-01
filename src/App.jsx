@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
-const SUPABASE_URL = "https://yxhqlnokkqhuqhvttgxw.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aHFsbm9ra3FodXFodnR0Z3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMjE0MTQsImV4cCI6MjA5MzU5NzQxNH0.i68qMyKyBEtVW8dGvacLuLLebWx8J_42SU5Wc2FgTR0";
+const SUPABASE_URL = "https://vjgvlgwetrgikrlkqvrn.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZ3ZsZ3dldHJnaWtybGtxdnJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMzc0MzYsImV4cCI6MjA5MzgxMzQzNn0.Vp4VqMKjCwE1PCu_ogUe537LrCepNzo8E-_GYr6LMNc";
 
 const headers = {
   "Content-Type": "application/json",
@@ -825,7 +825,7 @@ function TeacherView({ teacher, onLogout }) {
         {!selected ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16 }}>
             <div style={{ width: 72, height: 72, borderRadius: 20, background: C.blueLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>📚</div>
-            <div style={{ fontWeight: 700, fontSize: 20, color: C.text }}>Selecteer een klas</div>
+            <div style={{ fontWeight: 700, fontSize: 20, color: C.text }}>Selecteer een eerder aangemaakte toets</div>
             {rooms.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 320 }}>
                 {rooms.map(room => (
